@@ -1,5 +1,5 @@
 import streamlit as st
-from Documents.Documents_RetrieveDocuments import fetch_document_info  # Import function
+from Documents_RetrieveDocuments import fetch_document_info  # Import function
 
 st.title("📄 Alation Document Retriever")
 
