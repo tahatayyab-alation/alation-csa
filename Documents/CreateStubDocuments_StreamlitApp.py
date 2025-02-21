@@ -43,7 +43,7 @@ def create_stub_documents():
         response_data = response.json()
         
         if "job_id" in response_data:
-            st.success(f"✅ Stub documents creation request submitted successfully. Job ID: {response_data['job_id']}")
+            st.success(f"✅ Stub documents submitted successfully. Job ID: {response_data['job_id']}")
             return response_data["job_id"]
         else:
             st.error("❌ API response does not contain a job ID.")
@@ -75,7 +75,7 @@ def get_job_output(job_id):
             st.error(f"❌ Error checking job status: {e}")
             break
 
-    st.error(f"❌ Job {job_id} did not complete within {max_retries} attempts.")
+    st.error(f"❌ Job {job_id} did not complete within {max_retries} attempts. You may continue to monitor at {base_url}/monitor/active_tasks/.")
     return None
 
 if st.button("🚀 Create Stub Documents"):
