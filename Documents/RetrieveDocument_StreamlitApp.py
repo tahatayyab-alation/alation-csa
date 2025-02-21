@@ -9,6 +9,14 @@ base_url = st.sidebar.text_input("🔗 Alation BASE URL", "https://your-alation-
 api_token = st.sidebar.text_input("🔑 API Token", type="password")
 doc_id = st.text_input("Enter Document ID:", "")
 
+# 📌 Add Usage Notice in Sidebar
+st.sidebar.markdown("---")
+st.sidebar.markdown(
+    "⚠️ **Notice of Usage, Rights, and Alation Responsibility:**\n"
+    "This code is provided **as-is** with no expressed or implied warranty or support.\n"
+    "Alation is **not responsible** for its modification, use, or maintenance."
+)
+
 if st.button("Fetch Document Info"):
     if not doc_id:
         st.warning("⚠️ Please enter a Document ID.")
