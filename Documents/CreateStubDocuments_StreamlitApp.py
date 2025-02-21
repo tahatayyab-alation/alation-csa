@@ -23,6 +23,14 @@ max_retries = st.sidebar.number_input("🔄 Max Retries for Job Polling", value=
 # Convert nav_link_folder_ids from string to list
 nav_link_folder_ids = [int(x.strip()) for x in nav_link_folder_ids.split(",") if x.strip().isdigit()]
 
+# 📌 Add Usage Notice in Sidebar
+st.sidebar.markdown("---")
+st.sidebar.markdown(
+    "⚠️ **Notice of Usage, Rights, and Alation Responsibility:**\n"
+    "This code is provided **as-is** with no expressed or implied warranty or support.\n"
+    "Alation is **not responsible** for its modification, use, or maintenance."
+)
+
 def create_stub_documents():
     """Creates stub documents and returns the job ID."""
     headers = {'Token': api_token}
