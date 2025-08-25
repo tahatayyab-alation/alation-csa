@@ -4,6 +4,15 @@ import shlex
 
 def generate_curl_command(base_url, tenant_id, data_product_id, db, schema, if_exists, user_id, api_key):
     """Generates the cURL command string from user inputs."""
+
+    # Clean inputs by stripping whitespace
+    base_url = base_url.strip()
+    tenant_id = tenant_id.strip()
+    data_product_id = data_product_id.strip()
+    db = db.strip()
+    schema = schema.strip()
+    user_id = user_id.strip()
+    api_key = api_key.strip()
     
     # Construct the full URL with query parameters
     url = (
@@ -27,8 +36,20 @@ def generate_curl_command(base_url, tenant_id, data_product_id, db, schema, if_e
     return ' '.join(command_parts)
 
 def execute_api_call(base_url, tenant_id, data_product_id, db, schema, if_exists, user_id, api_key):
-    """Executes the API call using the requests library."""
+    """
+    Executes the API call using the requests library.
+    Returns a tuple: (success_boolean, response_object, error_details_dict)
+    """
     
+    # Clean inputs by stripping whitespace
+    base_url = base_url.strip()
+    tenant_id = tenant_id.strip()
+    data_product_id = data_product_id.strip()
+    db = db.strip()
+    schema = schema.strip()
+    user_id = user_id.strip()
+    api_key = api_key.strip()
+
     url = f"{base_url}/nsapi/api/v3/orgs/{tenant_id}/data_product/cold_start_from_data_product_id"
     
     headers = {
@@ -47,9 +68,25 @@ def execute_api_call(base_url, tenant_id, data_product_id, db, schema, if_exists
     try:
         response = requests.post(url, headers=headers, params=params, timeout=30)
         response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-        return True, response
+        return True, response, None
+    except requests.exceptions.HTTPError as e:
+        # Handle HTTP errors (e.g., 400, 401, 500)
+        error_details = {
+            "status_code": e.response.status_code,
+            "reason": e.response.reason,
+            "url": e.request.url,
+        }
+        try:
+            # Attempt to parse the server's JSON error response
+            error_details["body"] = e.response.json()
+        except ValueError:
+            # If the response isn't JSON, use the raw text
+            error_details["body"] = e.response.text
+        return False, None, error_details
     except requests.exceptions.RequestException as e:
-        return False, e
+        # Handle other network errors (e.g., connection timeout)
+        error_details = {"error_type": "Network Error", "message": str(e)}
+        return False, None, error_details
 
 
 # --- Streamlit App UI ---
@@ -102,24 +139,39 @@ with preview_col:
 with execute_col:
     if st.button("⚡ Execute API Call", type="primary", disabled=not all_fields_filled):
         with st.spinner("Sending request..."):
-            success, result = execute_api_call(
+            success, response, error_details = execute_api_call(
                 base_url, tenant_id, data_product_id, result_cache_db,
                 result_cache_schema, if_exists, alation_user_id, alation_api_key
             )
         
         st.subheader("API Response")
         if success:
-            st.success(f"Success! Status Code: {result.status_code}")
+            st.success(f"Success! Status Code: {response.status_code}")
             try:
                 # Try to display the JSON response
-                st.json(result.json())
+                st.json(response.json())
             except ValueError:
                 # If response is not JSON, display as text
-                st.text(result.text)
+                st.text(response.text)
         else:
-            st.error(f"An error occurred:")
-            st.exception(result)
+            # Display the new, more detailed error context
+            st.error("API Call Failed!")
+            if "status_code" in error_details: # It's an HTTPError
+                st.write(f"**Status Code:** `{error_details['status_code']} {error_details['reason']}`")
+                st.write(f"**Endpoint URL:**")
+                st.code(error_details['url'], language='text')
+                st.write("**Server Response:**")
+                # Check if the body is a dict/list (from JSON) or just text
+                if isinstance(error_details['body'], (dict, list)):
+                    st.json(error_details['body'])
+                elif error_details['body']:
+                     st.code(error_details['body'], language='text')
+                else:
+                    st.info("The server did not return any additional error details in the response body.")
+            else: # It's another RequestException (e.g., network error)
+                st.write(f"**Error Type:** {error_details['error_type']}")
+                st.write(f"**Details:** {error_details['message']}")
+
 
 if not all_fields_filled:
     st.warning("Please fill in all the fields to enable the Preview and Execute buttons.")
-
