@@ -66,8 +66,8 @@ col1, col2 = st.columns(2)
 
 with col1:
     base_url = st.text_input("Base URL", placeholder="https://your-alation-instance.com")
-    tenant_id = st.text_input("Tenant ID", placeholder="e.g., 1")
-    data_product_id = st.text_input("Data Product ID", placeholder="e.g., 123")
+    tenant_id = st.text_input("Tenant ID", placeholder="e.g., 123e4567-e89b-12d3-a456-426614174000")
+    data_product_id = st.text_input("Data Product ID", placeholder="e.g., my-data-product")
     if_exists = st.selectbox("If Exists Strategy", options=["error", "archive", "delete"], index=0)
 
 with col2:
