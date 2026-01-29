@@ -10,6 +10,9 @@ base_url = st.text_input("Alation Base URL", "https://your-instance.alationcloud
 api_token = st.text_input("API Token", type="password")
 catalog_set_id = st.text_input("Catalog Set ID")
 
+if "attributes" not in st.session_state:
+    st.session_state["attributes"] = []
+
 if not (base_url and api_token and catalog_set_id):
     st.stop()
 
@@ -24,11 +27,17 @@ headers = {
 def get_all_catalog_set_members():
     all_members = []
     limit = 100
-    offset = 0
+    skip = 0
 
     while True:
-        url = f"{base_url}/api/catalog_set/{catalog_set_id}/members/"
-        params = {"limit": limit, "offset": offset}
+        url = f"{base_url}/api/v1/catalog_set/{catalog_set_id}/members/"
+        params = {
+            "limit": limit,
+            "skip": skip,
+            "enable_server_count": "true",
+            "search": "",
+        }
+
         r = requests.get(url, headers=headers, params=params, timeout=30)
         r.raise_for_status()
 
@@ -37,35 +46,35 @@ def get_all_catalog_set_members():
             break
 
         all_members.extend(batch)
-        offset += limit
+        skip += limit
 
     return all_members
 
+
 def set_sensitive(attr_id):
     url = f"{base_url}/ajax/set_attr_sensitivity/{attr_id}/"
-    r = requests.post(
-        url,
-        headers={"Token": api_token},
-        data={"action": "mark_sensitive"},
-        timeout=30,
-    )
-    r.raise_for_status()
+    write_headers = {
+        "Token": api_token,
+        "Connection": "close",
+        "accept": "application/json",
+    }
+    return requests.post(url, headers=write_headers, data={"action": "mark_sensitive"}, timeout=30)
 
 def unset_sensitive(attr_id):
     url = f"{base_url}/ajax/set_attr_sensitivity/{attr_id}/"
-    r = requests.post(
-        url,
-        headers={"Token": api_token},
-        data={"action": "mark_unsensitive"},
-        timeout=30,
-    )
-    r.raise_for_status()
+    write_headers = {
+        "Token": api_token,
+        "Connection": "close",
+        "accept": "application/json",
+    }
+    return requests.post(url, headers=write_headers, data={"action": "mark_unsensitive"}, timeout=30)
 
 # =========================
 # MAIN FLOW
 # =========================
 if st.button("Retrieve Catalog Set Members"):
-    members = get_all_catalog_set_members()
+    with st.spinner("Retrieving catalog set members..."):
+        members = get_all_catalog_set_members()
 
     attributes = [m for m in members if m.get("otype") == "attribute"]
     st.session_state["attributes"] = attributes
@@ -89,30 +98,44 @@ if st.button("Retrieve Catalog Set Members"):
     else:
         st.warning("No attributes found in this catalog set.")
 
-
 # =========================
 # ACTION BUTTONS
 # =========================
 attributes = st.session_state.get("attributes", [])
-
 if attributes:
     total = len(attributes)
-
     col1, col2 = st.columns(2)
 
     with col1:
         if st.button("Set Sensitivity Flag"):
             progress = st.progress(0)
+            failures = []
             for i, a in enumerate(attributes, start=1):
-                set_sensitive(a["id"])
-                progress.progress(i / total)
-            st.success("Sensitivity flag set for all attributes.")
+                try:
+                    resp = set_sensitive(a["id"])
+                    resp.raise_for_status()
+                except Exception as e:
+                    failures.append((a["id"], str(e)))
+                progress.progress(int(i * 100 / total))
+            if failures:
+                st.error(f"Set completed with {len(failures)} failures. See logs.")
+                st.write(failures)
+            else:
+                st.success("Sensitivity flag set for all attributes.")
 
     with col2:
         if st.button("Unset Sensitivity Flag"):
             progress = st.progress(0)
+            failures = []
             for i, a in enumerate(attributes, start=1):
-                unset_sensitive(a["id"])
-                progress.progress(i / total)
-            st.success("Sensitivity flag unset for all attributes.")
-
+                try:
+                    resp = unset_sensitive(a["id"])
+                    resp.raise_for_status()
+                except Exception as e:
+                    failures.append((a["id"], str(e)))
+                progress.progress(int(i * 100 / total))
+            if failures:
+                st.error(f"Unset completed with {len(failures)} failures. See logs.")
+                st.write(failures)
+            else:
+                st.success("Sensitivity flag unset for all attributes.")
